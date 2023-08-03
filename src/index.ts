@@ -26,7 +26,7 @@ async function getPlainTextCode(event: CustomEmailSenderTriggerEvent) {
     return plainTextCode;
 }
 
-function createMessageObject(toEmail: string, plainTextCode: string, templateId: string, subject: string, cognitoLink: string): MailDataRequired {
+function createMessageObject(toEmail: string, plainTextCode: string, templateId: string, subject: string): MailDataRequired {
     if (!process.env.FROM_EMAIL) {
         throw Error('From email not found');
     }
@@ -42,7 +42,7 @@ function createMessageObject(toEmail: string, plainTextCode: string, templateId:
                     }
                 ],
                 dynamicTemplateData: {
-                    cognito_link: cognitoLink
+                    code: plainTextCode
                 }
             }
         ],
@@ -53,7 +53,6 @@ function createMessageObject(toEmail: string, plainTextCode: string, templateId:
 function generateMessageToSend(event: CustomEmailSenderTriggerEvent, plainTextCode: string, toEmail: string) {
     let templateId = '';
     let subject = '';
-    let cognitoLink = '';
 
     if (!(process.env.SIGN_UP_TEMPLATE_ID && process.env.SIGN_UP_SUBJECT)) {
         throw Error('Data to create sign up email is missing');
@@ -63,33 +62,26 @@ function generateMessageToSend(event: CustomEmailSenderTriggerEvent, plainTextCo
         throw Error('Data to create forgot password email is missing');
     }
 
-    if (!process.env.APP_BASE_URL) {
-        throw Error('Unable to create link');
-    }
-
     const maskedEmail = toEmail.replace(/^(.)(.*)(.@.*)$/, (_, a, b, c) => a + b.replace(/./g, '*') + c);
 
     if (event.triggerSource == 'CustomEmailSender_SignUp') {
         console.info(`Sending sign up email to ${maskedEmail}`);
         templateId = process.env.SIGN_UP_TEMPLATE_ID;
         subject = process.env.SIGN_UP_SUBJECT;
-        cognitoLink = process.env.APP_BASE_URL + `/auth/confirmRegistration?email=${toEmail}&accessCode=${plainTextCode}`;
     } else if (event.triggerSource == 'CustomEmailSender_ForgotPassword') {
         console.info(`Sending forgotten password email to ${maskedEmail}`);
         templateId = process.env.FORGOT_PASSWORD_TEMPLATE_ID;
         subject = process.env.FORGOT_PASSWORD_SUBJECT;
-        cognitoLink = process.env.APP_BASE_URL + `/auth/changePassword?email=${toEmail}&accessCode=${plainTextCode}`;
     } else if (event.triggerSource == 'CustomEmailSender_ResendCode') {
         console.info(`Resending confirmation code to ${maskedEmail}`);
         templateId = process.env.SIGN_UP_TEMPLATE_ID;
         subject = process.env.SIGN_UP_SUBJECT;
-        cognitoLink = process.env.APP_BASE_URL + `/auth/confirmRegistration?email=${toEmail}&accessCode=${plainTextCode}`;
     } else {
         console.info(`Unhandled event type: ${event.triggerSource}`);
         return;
     }
 
-    return createMessageObject(toEmail, plainTextCode, templateId, subject, cognitoLink);
+    return createMessageObject(toEmail, plainTextCode, templateId, subject);
 }
 
 export async function handler(event: CustomEmailSenderTriggerEvent): Promise<void> {
