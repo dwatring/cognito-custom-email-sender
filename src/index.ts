@@ -5,6 +5,8 @@ import sendgrid from '@sendgrid/mail';
 import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { StringMap } from 'aws-lambda/trigger/cognito-user-pool-trigger/_common';
 
+// GO LIBRARY: github.com/sendgrid/sendgrid-go
+
 async function getPlainTextCode(event: CustomEmailSenderTriggerEvent) {
     if (!event.request.code) {
         throw Error('Could not find code');
@@ -26,14 +28,10 @@ async function getPlainTextCode(event: CustomEmailSenderTriggerEvent) {
     return plainTextCode;
 }
 
-function createMessageObject(toEmail: string, plainTextCode: string, templateId: string, subject: string): MailDataRequired {
-    if (!process.env.FROM_EMAIL) {
-        throw Error('From email not found');
-    }
-
+function createMessageObject(toEmail: string, plainTextCode: string, subject: string): MailDataRequired {
     return {
-        from: process.env.FROM_EMAIL,
-        subject: subject,
+        from: 'webmaster@badtrader.app',
+        subject: 'Confirmation Code',
         personalizations: [
             {
                 to: [
@@ -46,36 +44,21 @@ function createMessageObject(toEmail: string, plainTextCode: string, templateId:
                 }
             }
         ],
-        templateId: templateId
+        templateId: 'd-ecfc21b583864eee893d01ef12ccc575'
     };
 }
 
 function generateMessageToSend(event: CustomEmailSenderTriggerEvent, plainTextCode: string, toEmail: string) {
-    let templateId = '';
     let subject = '';
-
-    if (!(process.env.SIGN_UP_TEMPLATE_ID && process.env.SIGN_UP_SUBJECT)) {
-        throw Error('Data to create sign up email is missing');
-    }
-
-    if (!(process.env.FORGOT_PASSWORD_TEMPLATE_ID && process.env.FORGOT_PASSWORD_SUBJECT)) {
-        throw Error('Data to create forgot password email is missing');
-    }
 
     const maskedEmail = toEmail.replace(/^(.)(.*)(.@.*)$/, (_, a, b, c) => a + b.replace(/./g, '*') + c);
 
     if (event.triggerSource == 'CustomEmailSender_SignUp') {
         console.info(`Sending sign up email to ${maskedEmail}`);
-        templateId = process.env.SIGN_UP_TEMPLATE_ID;
-        subject = process.env.SIGN_UP_SUBJECT;
     } else if (event.triggerSource == 'CustomEmailSender_ForgotPassword') {
         console.info(`Sending forgotten password email to ${maskedEmail}`);
-        templateId = process.env.FORGOT_PASSWORD_TEMPLATE_ID;
-        subject = process.env.FORGOT_PASSWORD_SUBJECT;
     } else if (event.triggerSource == 'CustomEmailSender_ResendCode') {
         console.info(`Resending confirmation code to ${maskedEmail}`);
-        templateId = process.env.SIGN_UP_TEMPLATE_ID;
-        subject = process.env.SIGN_UP_SUBJECT;
     } else {
         console.info(`Unhandled event type: ${event.triggerSource}`);
         return;
@@ -85,10 +68,6 @@ function generateMessageToSend(event: CustomEmailSenderTriggerEvent, plainTextCo
 }
 
 export async function handler(event: CustomEmailSenderTriggerEvent): Promise<void> {
-    if (!process.env.SENDGRID_API_KEY) {
-        throw Error('Sendgrid API key not found');
-    }
-
     sendgrid.setApiKey(process.env.SENDGRID_API_KEY);
 
     const plainTextCode = await getPlainTextCode(event);
